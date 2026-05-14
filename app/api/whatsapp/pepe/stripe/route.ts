@@ -1,14 +1,26 @@
-// Webhook Stripe dedicado a pedidos Pepe: verifica firma y confirma cobros (payment_intent.succeeded).
+// Webhook Stripe: verifica firma y confirma cobros (payment_intent.succeeded / checkout.session.completed).
 
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { confirmarPago, confirmarPagoDesdeFrom } from "@/lib/popolo/stripe";
+import { confirmarPago, confirmarPagoDesdeFrom, getStripe } from "@/lib/popolo/stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-06-20" as Stripe.StripeConfig["apiVersion"],
-});
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const webhookSecret = process.env.PEPE_STRIPE_WEBHOOK_SECRET?.trim();
+  if (!webhookSecret) {
+    console.error("[Pepe Stripe webhook] Falta PEPE_STRIPE_WEBHOOK_SECRET");
+    return NextResponse.json({ error: "Webhook no configurado" }, { status: 503 });
+  }
+
+  let stripe: Stripe;
+  try {
+    stripe = getStripe();
+  } catch (e) {
+    console.error("[Pepe Stripe webhook] Stripe no disponible:", e);
+    return NextResponse.json({ error: "Stripe no configurado" }, { status: 503 });
+  }
+
   const rawBody = await req.text();
 
   const sig = req.headers.get("stripe-signature");
@@ -18,11 +30,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
-      rawBody,
-      sig,
-      process.env.PEPE_STRIPE_WEBHOOK_SECRET!
-    );
+    event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
   } catch (err) {
     console.error("[Pepe Stripe webhook] Firma inválida:", err);
     return NextResponse.json({ error: "Firma inválida" }, { status: 400 });
@@ -91,6 +99,5 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 }
 
 /*
- * App Router: no uses `export const config = { api: { bodyParser: false } }` (solo Pages API y Next 14 lo rechaza).
- * `await req.text()` devuelve el cuerpo en bruto; Stripe puede verificar la firma con ese string.
+ * App Router: `await req.text()` conserva el cuerpo en bruto para `constructEvent`.
  */

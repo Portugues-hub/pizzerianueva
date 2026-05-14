@@ -8,10 +8,19 @@ import { registrarPedido } from "./inventario";
 import { actualizarEstadoPedido, getPedido, marcarTipoPagoDespuesDeStripe } from "./pedidos";
 import { enviarMensaje } from "./whatsapp";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  // Versión solicitada para Pepe; el SDK puede tipar otra por defecto.
-  apiVersion: "2024-06-20" as Stripe.StripeConfig["apiVersion"],
-});
+let stripeSingleton: Stripe | null = null;
+
+/** Cliente Stripe (lazy): evita fallar en el build de Vercel si aún no hay `STRIPE_SECRET_KEY`. */
+export function getStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!key) {
+    throw new Error("Falta STRIPE_SECRET_KEY en el entorno");
+  }
+  if (!stripeSingleton) {
+    stripeSingleton = new Stripe(key);
+  }
+  return stripeSingleton;
+}
 
 type RegistroPago = {
   from: string;
@@ -51,7 +60,7 @@ export async function crearPago(
 ): Promise<string> {
   const resumen = lineas.map((l) => `${l.item.nombre} x${l.cantidad}`).join(", ");
 
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     payment_method_types: ["card"],
     customer_email: "pedidos@elrincondepepe.net",
     line_items: lineas.map((l) => ({
@@ -120,7 +129,7 @@ export async function confirmarPago(paymentIntentId: string): Promise<boolean> {
 
   if (!registro) {
     try {
-      const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const intent = await getStripe().paymentIntents.retrieve(paymentIntentId);
       intentMetadataFrom = intent.metadata?.from;
       const rawNumero = intent.metadata?.numeroPedido;
       intentNumeroPedido = rawNumero ? Number(rawNumero) : undefined;
