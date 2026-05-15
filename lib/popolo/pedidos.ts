@@ -124,7 +124,9 @@ async function obtenerPedido(numeroPedido: number): Promise<Pedido | undefined> 
 }
 
 async function obtenerPedidosDesdeAlmacen(): Promise<Pedido[]> {
-  const keys = await memoryStore.keys("pepe:pedido:*");
+  const keys = (await memoryStore.keys("pepe:pedido:*")).filter(
+    (k) => k !== "pepe:pedido:seq"
+  );
   if (keys.length === 0) return [];
   const valoresRaw = await memoryStore.mget(...keys);
   return valoresRaw
