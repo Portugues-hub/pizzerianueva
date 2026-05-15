@@ -417,7 +417,7 @@ export default function CocinaPage() {
           onSubmit={autenticar}
           className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-8 space-y-6"
         >
-          <h1 className="text-3xl font-bold text-center">Panel de Cocina</h1>
+          <h1 className="text-3xl font-bold text-center">Il Popolo — Panel de Cocina</h1>
           <p className="text-slate-300 text-center text-lg">Introduce la contraseña para entrar</p>
           <input
             type="password"
@@ -444,7 +444,7 @@ export default function CocinaPage() {
       <header className="mb-6 rounded-2xl bg-white p-4 md:p-6 shadow-sm border border-slate-200">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900">
-            El Rincón de Pepe — Panel de Cocina
+            Il Popolo Pasta & Pizza — Panel de Cocina
           </h1>
           <div className="flex items-center gap-5">
             <div className="flex items-center gap-2">
