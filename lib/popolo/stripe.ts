@@ -36,6 +36,81 @@ function keyPagoFrom(from: string): string {
   return `pepe:pago:from:${from}`;
 }
 
+function keyCheckoutSession(sessionId: string): string {
+  return `pepe:checkout:${sessionId}`;
+}
+
+function urlPaginaGracias(): string {
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    process.env.APP_URL?.trim() ||
+    (process.env.VERCEL_URL?.trim() ? `https://${process.env.VERCEL_URL.trim()}` : "");
+  if (base) return `${base.replace(/\/$/, "")}/gracias`;
+  return "https://elrincondepepe.net/gracias";
+}
+
+function paymentIntentIdFromSession(
+  session: Stripe.Checkout.Session
+): string | undefined {
+  const pi = session.payment_intent;
+  if (typeof pi === "string") return pi;
+  if (pi && typeof pi === "object" && "id" in pi) return pi.id;
+  return undefined;
+}
+
+async function registrarPagoPendiente(
+  registro: RegistroPago,
+  sessionId: string,
+  paymentIntentId?: string
+): Promise<void> {
+  const payload = JSON.stringify(registro);
+  const ttl = 86400;
+  await memoryStore.set(keyPagoFrom(registro.from), payload, "EX", ttl);
+  await memoryStore.set(keyCheckoutSession(sessionId), payload, "EX", ttl);
+  if (paymentIntentId) {
+    await memoryStore.set(keyPago(paymentIntentId), payload, "EX", ttl);
+  }
+}
+
+async function finalizarPagoConfirmado(
+  registro: RegistroPago,
+  paymentIntentId?: string,
+  checkoutSessionId?: string
+): Promise<void> {
+  const { from, lineas } = registro;
+  const lineasTxt = lineas.map(formatLineaResumen).join("\n");
+  const total = formatTotalEuros(totalLineasEuros(lineas));
+
+  await enviarMensaje(
+    from,
+    `✅ *Pago confirmado*\n\nTu pedido está en cocina:\n${lineasTxt}\n\n*Total cobrado: ${total}€*\nTiempo estimado: 30-40 min.\n\nGracias por pedir en ${MENU.negocio.nombre} 🍕`
+  );
+
+  try {
+    await notificarPepe(from, lineas);
+  } catch (err) {
+    console.warn("[Pepe Stripe] notificarPepe falló (no crítico):", err);
+  }
+
+  const numeroPedido = registro.numeroPedido;
+  if (typeof numeroPedido === "number" && Number.isFinite(numeroPedido)) {
+    await actualizarEstadoPedido(numeroPedido, "pagado");
+    await marcarTipoPagoDespuesDeStripe(numeroPedido);
+  } else {
+    const pedido = await getPedido(from);
+    if (pedido) {
+      await actualizarEstadoPedido(pedido.numeroPedido, "pagado");
+      await marcarTipoPagoDespuesDeStripe(pedido.numeroPedido);
+    }
+  }
+
+  await registrarPedido(lineas);
+
+  if (paymentIntentId) await memoryStore.del(keyPago(paymentIntentId));
+  await memoryStore.del(keyPagoFrom(from));
+  if (checkoutSessionId) await memoryStore.del(keyCheckoutSession(checkoutSessionId));
+}
+
 function totalLineasEuros(lineas: LineaPedido[]): number {
   return lineas.reduce((acc, l) => acc + l.item.precio * l.cantidad, 0);
 }
@@ -58,11 +133,16 @@ export async function crearPago(
   lineas: LineaPedido[],
   numeroPedido?: number
 ): Promise<string> {
+  if (lineas.length === 0) {
+    throw new Error("No hay líneas en el pedido para cobrar");
+  }
+
   const resumen = lineas.map((l) => `${l.item.nombre} x${l.cantidad}`).join(", ");
+  const registro: RegistroPago = { from, numeroPedido, lineas };
+  const urlGracias = urlPaginaGracias();
 
   const session = await getStripe().checkout.sessions.create({
     payment_method_types: ["card"],
-    customer_email: "pedidos@elrincondepepe.net",
     line_items: lineas.map((l) => ({
       price_data: {
         currency: "eur",
@@ -72,8 +152,8 @@ export async function crearPago(
       quantity: l.cantidad,
     })),
     mode: "payment",
-    success_url: "https://elrincondepepe.net/gracias",
-    cancel_url: "https://elrincondepepe.net/gracias",
+    success_url: urlGracias,
+    cancel_url: urlGracias,
     metadata: {
       from,
       numeroPedido: numeroPedido ? String(numeroPedido) : "",
@@ -83,21 +163,35 @@ export async function crearPago(
       metadata: {
         from,
         numeroPedido: numeroPedido ? String(numeroPedido) : "",
-        negocio: "rincon_de_pepe",
+        negocio: MENU.negocio.nombre,
         resumen,
       },
     },
   });
 
-  await memoryStore.set(
-    keyPagoFrom(from),
-    JSON.stringify({ from, numeroPedido, lineas }),
-    "EX",
-    86400
-  );
-
   if (!session.url) {
     throw new Error("Stripe no devolvió URL de Checkout Session");
+  }
+
+  let paymentIntentId = paymentIntentIdFromSession(session);
+  if (!paymentIntentId) {
+    const full = await getStripe().checkout.sessions.retrieve(session.id, {
+      expand: ["payment_intent"],
+    });
+    paymentIntentId = paymentIntentIdFromSession(full);
+  }
+
+  await registrarPagoPendiente(registro, session.id, paymentIntentId);
+
+  if (paymentIntentId) {
+    await getStripe().checkout.sessions.update(session.id, {
+      metadata: {
+        from,
+        numeroPedido: numeroPedido ? String(numeroPedido) : "",
+        negocio: MENU.negocio.nombre,
+        pepe_payment_intent_id: paymentIntentId,
+      },
+    });
   }
 
   return session.url;
@@ -125,14 +219,11 @@ export async function confirmarPago(paymentIntentId: string): Promise<boolean> {
   const rawRegistro = await memoryStore.get(keyPago(paymentIntentId));
   let registro = JSON.parse(rawRegistro ?? "null") as RegistroPago | null;
   let intentMetadataFrom: string | undefined;
-  let intentNumeroPedido: number | undefined;
 
   if (!registro) {
     try {
       const intent = await getStripe().paymentIntents.retrieve(paymentIntentId);
       intentMetadataFrom = intent.metadata?.from;
-      const rawNumero = intent.metadata?.numeroPedido;
-      intentNumeroPedido = rawNumero ? Number(rawNumero) : undefined;
     } catch (err) {
       console.error("[Pepe Stripe] Error recuperando PaymentIntent para fallback:", err);
     }
@@ -157,40 +248,57 @@ export async function confirmarPago(paymentIntentId: string): Promise<boolean> {
   }
 
   const from = registro?.from ?? intentMetadataFrom;
-  if (!registro || !from) {
+  if (!registro?.lineas?.length || !from) {
     console.warn("[Pepe Stripe] confirmarPago: sin registro para intent", paymentIntentId);
+    if (intentMetadataFrom) {
+      return confirmarPagoDesdeFrom(intentMetadataFrom, paymentIntentId);
+    }
     return false;
   }
 
-  const { lineas } = registro;
-  const lineasTxt = lineas.map(formatLineaResumen).join("\n");
-  const total = formatTotalEuros(totalLineasEuros(lineas));
-
-  await enviarMensaje(
-    from,
-    `✅ *Pago confirmado*\n\nTu pedido está en cocina:\n${lineasTxt}\n\n*Total cobrado: ${total}€*\nTiempo estimado: 30-40 min.\n\nGracias por pedir en ${MENU.negocio.nombre} 🍕`
-  );
-
-  try {
-    await notificarPepe(from, lineas);
-  } catch (err) {
-    console.warn("[Pepe Stripe] notificarPepe falló (no crítico):", err);
-  }
-  const numeroPedido = registro.numeroPedido ?? intentNumeroPedido;
-  if (typeof numeroPedido === "number" && Number.isFinite(numeroPedido)) {
-    await actualizarEstadoPedido(numeroPedido, "pagado");
-    await marcarTipoPagoDespuesDeStripe(numeroPedido);
-  }
-  await registrarPedido(lineas);
-  await memoryStore.del(keyPago(paymentIntentId));
-  await memoryStore.del(keyPagoFrom(from));
+  await finalizarPagoConfirmado(registro, paymentIntentId);
   return true;
 }
 
-/** Fallback cuando Stripe solo aporta `from` en metadata (p.ej. checkout.session.completed). */
+/** Tras `checkout.session.completed`: usa el registro guardado al crear el enlace. */
+export async function confirmarPagoDesdeCheckoutSession(
+  session: Stripe.Checkout.Session
+): Promise<boolean> {
+  const raw = await memoryStore.get(keyCheckoutSession(session.id));
+  let registro = JSON.parse(raw ?? "null") as RegistroPago | null;
+
+  const from = session.metadata?.from ?? registro?.from;
+  if (!registro?.lineas?.length && from) {
+    const rawFrom = await memoryStore.get(keyPagoFrom(from));
+    registro = JSON.parse(rawFrom ?? "null") as RegistroPago | null;
+  }
+
+  const paymentIntentId =
+    session.metadata?.pepe_payment_intent_id ??
+    paymentIntentIdFromSession(session);
+
+  if (registro?.lineas?.length && from) {
+    await finalizarPagoConfirmado(
+      { ...registro, from: registro.from ?? from },
+      paymentIntentId,
+      session.id
+    );
+    return true;
+  }
+
+  if (from) {
+    return confirmarPagoDesdeFrom(from, paymentIntentId);
+  }
+
+  console.warn("[Pepe Stripe] confirmarPagoDesdeCheckoutSession: sin datos", session.id);
+  return false;
+}
+
+/** Fallback cuando el pedido sigue activo en memoria (misma instancia). */
 export async function confirmarPagoDesdeFrom(
   from: string,
-  paymentIntentId?: string
+  paymentIntentId?: string,
+  checkoutSessionId?: string
 ): Promise<boolean> {
   const pedido = await getPedido(from);
   if (!pedido || pedido.lineas.length === 0) {
@@ -198,26 +306,11 @@ export async function confirmarPagoDesdeFrom(
     return false;
   }
 
-  const lineas = pedido.lineas;
-  const lineasTxt = lineas.map(formatLineaResumen).join("\n");
-  const total = formatTotalEuros(totalLineasEuros(lineas));
-
-  await enviarMensaje(
+  const registro: RegistroPago = {
     from,
-    `✅ *Pago confirmado*\n\nTu pedido está en cocina:\n${lineasTxt}\n\n*Total cobrado: ${total}€*\nTiempo estimado: 30-40 min.\n\nGracias por pedir en ${MENU.negocio.nombre} 🍕`
-  );
-  try {
-    await notificarPepe(from, lineas);
-  } catch (err) {
-    console.warn("[Pepe Stripe] notificarPepe falló (no crítico):", err);
-  }
-  await actualizarEstadoPedido(pedido.numeroPedido, "pagado");
-  await marcarTipoPagoDespuesDeStripe(pedido.numeroPedido);
-  await registrarPedido(lineas);
-
-  if (paymentIntentId) {
-    await memoryStore.del(keyPago(paymentIntentId));
-  }
-  await memoryStore.del(keyPagoFrom(from));
+    numeroPedido: pedido.numeroPedido,
+    lineas: pedido.lineas,
+  };
+  await finalizarPagoConfirmado(registro, paymentIntentId, checkoutSessionId);
   return true;
 }

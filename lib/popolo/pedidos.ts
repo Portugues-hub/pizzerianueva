@@ -274,6 +274,10 @@ async function generarYEnviarLinkPago(pedido: Pedido, from: string): Promise<voi
     return;
   }
 
+  pedido.estado = "pagando";
+  delete pedido.esperandoMetodoPago;
+  await guardarPedido(pedido);
+
   await enviarMensaje(
     from,
     `Perfecto. Aquí tienes tu link de pago seguro:\n${url.trim()}\nEl pedido quedará confirmado cuando se complete el pago.`
@@ -391,8 +395,16 @@ export async function procesarMensaje(from: string, texto: string): Promise<void
     const pedido = await obtenerPedidoActivoPorFrom(from);
     if (pedido?.esperandoMetodoPago) {
       pedido.esperandoMetodoPago = false;
+      pedido.estado = "pagando";
       await guardarPedido(pedido);
       await generarYEnviarLinkPago(pedido, from);
+      return;
+    }
+    if (pedido && pedido.lineas.length > 0) {
+      await enviarMensaje(
+        from,
+        "Para pagar con tarjeta, escribe primero *pagar*, elige *local* o *domicilio* y luego *tarjeta*."
+      );
       return;
     }
   }

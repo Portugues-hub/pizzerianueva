@@ -12,7 +12,7 @@ export default function GraciasPage() {
           Tu pedido está en camino. En breve recibirás una confirmación por WhatsApp.
         </p>
         <p className="mt-8 text-2xl md:text-3xl font-bold text-green-900">
-          El Rincón de Pepe 🍕
+          Il Popolo Pasta & Pizza 🍕
         </p>
       </section>
     </main>

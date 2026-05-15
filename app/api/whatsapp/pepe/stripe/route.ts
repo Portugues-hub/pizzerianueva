@@ -2,7 +2,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { confirmarPago, confirmarPagoDesdeFrom, getStripe } from "@/lib/popolo/stripe";
+import {
+  confirmarPago,
+  confirmarPagoDesdeCheckoutSession,
+  confirmarPagoDesdeFrom,
+  getStripe,
+} from "@/lib/popolo/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -58,36 +63,45 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }
     } else {
       const session = event.data.object as Stripe.Checkout.Session;
-      const from = session.metadata?.from;
-      const originalIntentId = session.metadata?.pepe_payment_intent_id;
-      const checkoutIntentId =
-        typeof session.payment_intent === "string" ? session.payment_intent : undefined;
 
       console.log(
         "[Pepe Stripe webhook] checkout.session.completed:",
         session.id,
-        "intent(original):",
-        originalIntentId,
-        "intent(checkout):",
-        checkoutIntentId,
         "from:",
-        from
+        session.metadata?.from
       );
 
       let procesado = false;
-      if (originalIntentId) {
-        try {
-          procesado = await confirmarPago(originalIntentId);
-        } catch (err) {
-          console.error(
-            "[Pepe Stripe webhook] Error confirmando por pepe_payment_intent_id:",
-            err
-          );
-        }
+      try {
+        procesado = await confirmarPagoDesdeCheckoutSession(session);
+      } catch (err) {
+        console.error("[Pepe Stripe webhook] Error en confirmarPagoDesdeCheckoutSession:", err);
       }
 
-      if (!procesado && from) {
-        await confirmarPagoDesdeFrom(from, originalIntentId ?? checkoutIntentId);
+      if (!procesado) {
+        const from = session.metadata?.from;
+        const originalIntentId = session.metadata?.pepe_payment_intent_id;
+        const checkoutIntentId =
+          typeof session.payment_intent === "string" ? session.payment_intent : undefined;
+
+        if (originalIntentId) {
+          try {
+            procesado = await confirmarPago(originalIntentId);
+          } catch (err) {
+            console.error(
+              "[Pepe Stripe webhook] Error confirmando por pepe_payment_intent_id:",
+              err
+            );
+          }
+        }
+
+        if (!procesado && from) {
+          await confirmarPagoDesdeFrom(
+            from,
+            originalIntentId ?? checkoutIntentId,
+            session.id
+          );
+        }
       }
     }
 
