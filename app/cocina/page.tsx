@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { MENU, type Categoria } from "@/lib/popolo/menu";
+import { ORDEN_CATEGORIAS_INVENTARIO } from "@/lib/popolo/recetas-il-popolo";
 
 type EstadoPedido = "abierto" | "pagando" | "pagado" | "preparacion" | "listo" | "cobrado";
 type EstadoInventario = "ok" | "bajo" | "critico";
@@ -27,6 +28,7 @@ interface IngredienteInventario {
   minimo: number;
   unidad: "g" | "ud" | "lata";
   estado: EstadoInventario;
+  categoria?: string;
 }
 
 const SESSION_KEY = "pepe_cocina_session";
@@ -78,6 +80,75 @@ function formatHora(fechaIso: string): string {
 
 function formatTotal(n: number): string {
   return `${n.toFixed(2).replace(".", ",")}€`;
+}
+
+function TarjetaIngrediente({
+  ing,
+  stockEdiciones,
+  onStockChange,
+  onSumar,
+  onEstablecer,
+}: {
+  ing: IngredienteInventario;
+  stockEdiciones: Record<string, string>;
+  onStockChange: (key: string, value: string) => void;
+  onSumar: (key: string) => void;
+  onEstablecer: (key: string) => void;
+}) {
+  const ratio = ing.minimo > 0 ? Math.min(100, (ing.stock / (ing.minimo * 2)) * 100) : 0;
+  const barra =
+    ing.estado === "critico"
+      ? "bg-red-500"
+      : ing.estado === "bajo"
+        ? "bg-orange-500"
+        : "bg-green-500";
+  const emoji = ing.estado === "critico" ? "🔴" : ing.estado === "bajo" ? "⚠️" : "✅";
+
+  return (
+    <article className="rounded-2xl bg-white p-4 md:p-5 border border-slate-200 shadow-sm">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-lg md:text-xl font-bold text-slate-900">{ing.nombre}</h3>
+        <span className="text-xl">{emoji}</span>
+      </div>
+      <p className="mt-2 text-slate-700 font-semibold">
+        {ing.stock}
+        {ing.unidad}
+      </p>
+      <div className="mt-3 h-3 w-full rounded-full bg-slate-200 overflow-hidden">
+        <div className={`h-full ${barra}`} style={{ width: `${ratio}%` }} />
+      </div>
+      <p className="mt-2 text-sm text-slate-500">
+        Mínimo: {ing.minimo}
+        {ing.unidad}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <input
+          type="number"
+          min={0}
+          step="any"
+          inputMode="decimal"
+          value={stockEdiciones[ing.key] ?? ""}
+          onChange={(e) => onStockChange(ing.key, e.target.value)}
+          className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm font-medium text-slate-900"
+          placeholder="Cant."
+        />
+        <button
+          type="button"
+          onClick={() => onSumar(ing.key)}
+          className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-sm font-semibold"
+        >
+          Sumar
+        </button>
+        <button
+          type="button"
+          onClick={() => onEstablecer(ing.key)}
+          className="rounded-lg bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 text-sm font-semibold"
+        >
+          Establecer
+        </button>
+      </div>
+    </article>
+  );
 }
 
 export default function CocinaPage() {
@@ -523,63 +594,30 @@ export default function CocinaPage() {
             />
           </>
         ) : tab === "inventario" ? (
-          <div className="xl:col-span-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
-            {ingredientes.map((ing) => {
-              const ratio = ing.minimo > 0 ? Math.min(100, (ing.stock / (ing.minimo * 2)) * 100) : 0;
-              const barra =
-                ing.estado === "critico"
-                  ? "bg-red-500"
-                  : ing.estado === "bajo"
-                    ? "bg-orange-500"
-                    : "bg-green-500";
-              const emoji =
-                ing.estado === "critico" ? "🔴" : ing.estado === "bajo" ? "⚠️" : "✅";
+          <div className="xl:col-span-3 space-y-8">
+            {ORDEN_CATEGORIAS_INVENTARIO.map(({ id, titulo }) => {
+              const grupo = ingredientes.filter((ing) => (ing.categoria ?? "otros") === id);
+              if (grupo.length === 0) return null;
               return (
-                <article
-                  key={ing.key}
-                  className="rounded-2xl bg-white p-4 md:p-5 border border-slate-200 shadow-sm"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-lg md:text-xl font-bold text-slate-900">{ing.nombre}</h3>
-                    <span className="text-xl">{emoji}</span>
+                <section key={id}>
+                  <h2 className="text-lg md:text-xl font-extrabold text-slate-800 border-b border-slate-200 pb-2 mb-4">
+                    {titulo}
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+                    {grupo.map((ing) => (
+                      <TarjetaIngrediente
+                        key={ing.key}
+                        ing={ing}
+                        stockEdiciones={stockEdiciones}
+                        onStockChange={(key, value) =>
+                          setStockEdiciones((prev) => ({ ...prev, [key]: value }))
+                        }
+                        onSumar={(key) => actualizarStockPanel(key, "sumar")}
+                        onEstablecer={(key) => actualizarStockPanel(key, "establecer")}
+                      />
+                    ))}
                   </div>
-                  <p className="mt-2 text-slate-700 font-semibold">
-                    {ing.stock}
-                    {ing.unidad}
-                  </p>
-                  <div className="mt-3 h-3 w-full rounded-full bg-slate-200 overflow-hidden">
-                    <div className={`h-full ${barra}`} style={{ width: `${ratio}%` }} />
-                  </div>
-                  <p className="mt-2 text-sm text-slate-500">Mínimo: {ing.minimo}{ing.unidad}</p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <input
-                      type="number"
-                      min={0}
-                      step="any"
-                      inputMode="decimal"
-                      value={stockEdiciones[ing.key] ?? ""}
-                      onChange={(e) =>
-                        setStockEdiciones((prev) => ({ ...prev, [ing.key]: e.target.value }))
-                      }
-                      className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm font-medium text-slate-900"
-                      placeholder="Cant."
-                    />
-                    <button
-                      type="button"
-                      onClick={() => actualizarStockPanel(ing.key, "sumar")}
-                      className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-sm font-semibold"
-                    >
-                      Sumar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => actualizarStockPanel(ing.key, "establecer")}
-                      className="rounded-lg bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 text-sm font-semibold"
-                    >
-                      Establecer
-                    </button>
-                  </div>
-                </article>
+                </section>
               );
             })}
           </div>
@@ -655,11 +693,21 @@ export default function CocinaPage() {
                           className="flex-1 min-w-[180px] rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900"
                         >
                           <option value="">— Ingrediente —</option>
-                          {ingredientes.map((ing) => (
-                            <option key={ing.key} value={ing.key}>
-                              {ing.nombre} ({ing.key})
-                            </option>
-                          ))}
+                          {ORDEN_CATEGORIAS_INVENTARIO.map(({ id, titulo }) => {
+                            const grupo = ingredientes.filter(
+                              (ing) => (ing.categoria ?? "otros") === id
+                            );
+                            if (grupo.length === 0) return null;
+                            return (
+                              <optgroup key={id} label={titulo}>
+                                {grupo.map((ing) => (
+                                  <option key={ing.key} value={ing.key}>
+                                    {ing.nombre}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            );
+                          })}
                         </select>
                         <input
                           type="number"

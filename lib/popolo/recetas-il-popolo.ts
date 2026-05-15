@@ -414,3 +414,155 @@ export function crearStockIlPopolo(): Map<string, StockIngrediente> {
     ["pasas", { nombre: "Pasas", stockGramos: 200, minimoGramos: 80, unidad: "g" }],
   ]);
 }
+
+/** Categorías del panel de inventario (orden de visualización). */
+export type CategoriaInventario =
+  | "masas_bases"
+  | "salsas"
+  | "lacteos_quesos"
+  | "carnes_embutidos"
+  | "pescados_mariscos"
+  | "verduras_hortalizas"
+  | "especias_condimentos"
+  | "postres"
+  | "otros";
+
+export const ORDEN_CATEGORIAS_INVENTARIO: { id: CategoriaInventario; titulo: string }[] = [
+  { id: "masas_bases", titulo: "Masas y bases" },
+  { id: "salsas", titulo: "Salsas" },
+  { id: "lacteos_quesos", titulo: "Lácteos y quesos" },
+  { id: "carnes_embutidos", titulo: "Carnes y embutidos" },
+  { id: "pescados_mariscos", titulo: "Pescados y mariscos" },
+  { id: "verduras_hortalizas", titulo: "Verduras y hortalizas" },
+  { id: "especias_condimentos", titulo: "Especias y condimentos" },
+  { id: "postres", titulo: "Postres" },
+  { id: "otros", titulo: "Otros" },
+];
+
+/** Clasificación de cada ingrediente del stock Il Popolo. */
+export const CATEGORIA_POR_INGREDIENTE: Record<string, CategoriaInventario> = {
+  // Masas y bases
+  masa_pizza: "masas_bases",
+  masa_pinsa: "masas_bases",
+  pan_ajo: "masas_bases",
+  pan_arabe: "masas_bases",
+  laminas_lasana: "masas_bases",
+  rigatoni: "masas_bases",
+  espagueti: "masas_bases",
+  papardelle: "masas_bases",
+  pasta_rellena: "masas_bases",
+  harina: "masas_bases",
+  croqueta_masa: "masas_bases",
+  base_galleta: "masas_bases",
+  bizcocho: "masas_bases",
+  crouton: "masas_bases",
+  // Salsas
+  salsa_tomate: "salsas",
+  salsa_barbacoa: "salsas",
+  salsa_bolognesa: "salsas",
+  salsa_nata: "salsas",
+  salsa_nueces: "salsas",
+  salsa_trufa: "salsas",
+  salsa_rosa: "salsas",
+  salsa_cesar: "salsas",
+  bechamel: "salsas",
+  mayonesa: "salsas",
+  pesto_almendras: "salsas",
+  vinagreta_mango: "salsas",
+  tartufata: "salsas",
+  mantequilla_ajo: "salsas",
+  // Lácteos y quesos
+  mozzarella: "lacteos_quesos",
+  mozzarella_vegana: "lacteos_quesos",
+  queso_cabra: "lacteos_quesos",
+  parmesano: "lacteos_quesos",
+  gorgonzola: "lacteos_quesos",
+  roquefort: "lacteos_quesos",
+  burrata: "lacteos_quesos",
+  provolone: "lacteos_quesos",
+  requeson: "lacteos_quesos",
+  nata: "lacteos_quesos",
+  leche: "lacteos_quesos",
+  mascarpone: "lacteos_quesos",
+  queso_tarta: "lacteos_quesos",
+  huevo: "lacteos_quesos",
+  // Carnes y embutidos
+  jamon_york: "carnes_embutidos",
+  jamon_serrano: "carnes_embutidos",
+  beicon: "carnes_embutidos",
+  salami: "carnes_embutidos",
+  pepperoni: "carnes_embutidos",
+  guanciale: "carnes_embutidos",
+  carne_picada: "carnes_embutidos",
+  carne_hamburguesa: "carnes_embutidos",
+  secreto: "carnes_embutidos",
+  lomo: "carnes_embutidos",
+  pollo: "carnes_embutidos",
+  pollo_vegano: "carnes_embutidos",
+  pollo_empanado: "carnes_embutidos",
+  foie: "carnes_embutidos",
+  // Pescados y mariscos
+  atun: "pescados_mariscos",
+  anchoas: "pescados_mariscos",
+  salmon: "pescados_mariscos",
+  huevas: "pescados_mariscos",
+  gambas: "pescados_mariscos",
+  mejillones: "pescados_mariscos",
+  surimi: "pescados_mariscos",
+  // Verduras y hortalizas
+  cebolla: "verduras_hortalizas",
+  pimiento: "verduras_hortalizas",
+  pimiento_asado: "verduras_hortalizas",
+  olivas: "verduras_hortalizas",
+  champiñon: "verduras_hortalizas",
+  alcachofas: "verduras_hortalizas",
+  berenjena: "verduras_hortalizas",
+  albahaca: "verduras_hortalizas",
+  rucula: "verduras_hortalizas",
+  pera: "verduras_hortalizas",
+  tomate_cherry: "verduras_hortalizas",
+  espinacas: "verduras_hortalizas",
+  tomate: "verduras_hortalizas",
+  lechuga: "verduras_hortalizas",
+  zanahoria: "verduras_hortalizas",
+  esparrago: "verduras_hortalizas",
+  brotes: "verduras_hortalizas",
+  patata: "verduras_hortalizas",
+  patata_cocida: "verduras_hortalizas",
+  guisantes: "verduras_hortalizas",
+  verduras_asadas: "verduras_hortalizas",
+  boletus: "verduras_hortalizas",
+  aguacate: "verduras_hortalizas",
+  piña: "verduras_hortalizas",
+  pasas: "verduras_hortalizas",
+  // Especias y condimentos
+  oregano: "especias_condimentos",
+  pimienta: "especias_condimentos",
+  guindilla: "especias_condimentos",
+  ajo: "especias_condimentos",
+  perejil: "especias_condimentos",
+  aceite_oliva: "especias_condimentos",
+  aceite_trufa: "especias_condimentos",
+  miel: "especias_condimentos",
+  nueces: "especias_condimentos",
+  pistachos: "especias_condimentos",
+  azucar: "especias_condimentos",
+  vainilla: "especias_condimentos",
+  cafe: "especias_condimentos",
+  cacao: "especias_condimentos",
+  // Postres
+  chocolate: "postres",
+  chocolate_blanco: "postres",
+  chocolate_leche: "postres",
+  torta_chocolate: "postres",
+  helado: "postres",
+  nocilla: "postres",
+};
+
+export function categoriaDeIngrediente(key: string): CategoriaInventario {
+  return CATEGORIA_POR_INGREDIENTE[key] ?? "otros";
+}
+
+export function tituloCategoriaInventario(id: CategoriaInventario): string {
+  return ORDEN_CATEGORIAS_INVENTARIO.find((c) => c.id === id)?.titulo ?? "Otros";
+}

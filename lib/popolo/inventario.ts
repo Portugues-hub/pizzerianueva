@@ -6,7 +6,11 @@ import type { LineaPedido } from "./pedidos";
 import { RECETAS_IL_POPOLO, crearStockIlPopolo } from "./recetas-il-popolo";
 
 /** Carta Il Popolo: recetas por plato (ver `recetas-il-popolo.ts`). */
-export { RECETAS_IL_POPOLO };
+export {
+  RECETAS_IL_POPOLO,
+  categoriaDeIngrediente,
+  type CategoriaInventario,
+} from "./recetas-il-popolo";
 
 const STORE_STOCK_KEY = "pepe:inventario:stock";
 const STORE_RECETAS_KEY = "pepe:recetas";

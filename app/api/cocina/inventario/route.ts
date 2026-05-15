@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   aplicarCambioStockPanel,
   cargarStockEnMemoria,
+  categoriaDeIngrediente,
   getEstadoIngrediente,
   getEstadoStock,
 } from "@/lib/popolo/inventario";
@@ -19,14 +20,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   await cargarStockEnMemoria();
 
-  const ingredientes = Array.from(getEstadoStock().entries()).map(([key, ing]) => ({
-    key,
-    nombre: ing.nombre,
-    stock: ing.stockGramos,
-    minimo: ing.minimoGramos,
-    unidad: ing.unidad,
-    estado: getEstadoIngrediente(key),
-  }));
+  const ingredientes = Array.from(getEstadoStock().entries())
+    .map(([key, ing]) => ({
+      key,
+      nombre: ing.nombre,
+      stock: ing.stockGramos,
+      minimo: ing.minimoGramos,
+      unidad: ing.unidad,
+      estado: getEstadoIngrediente(key),
+      categoria: categoriaDeIngrediente(key),
+    }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
   return NextResponse.json({ ingredientes }, { status: 200 });
 }
