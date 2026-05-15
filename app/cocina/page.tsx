@@ -33,6 +33,18 @@ interface IngredienteInventario {
 
 const SESSION_KEY = "pepe_cocina_session";
 
+const UI = {
+  header: "#1a1a1a",
+  accent: "#e63946",
+  bg: "#f8f8f8",
+  border: "#e0e0e0",
+  text: "#1a1a1a",
+  muted: "#666666",
+  nuevo: "#e63946",
+  preparacion: "#f77f00",
+  listo: "#2d6a4f",
+} as const;
+
 type FilaReceta = { localId: string; key: string; cantidad: number };
 
 const ORDEN_CATEGORIAS_RECETAS: { categoria: Categoria; etiqueta: string }[] = [
@@ -82,6 +94,12 @@ function formatTotal(n: number): string {
   return `${n.toFixed(2).replace(".", ",")}€`;
 }
 
+function claseTab(activo: boolean): string {
+  return activo
+    ? "border border-[#e63946] bg-[#e63946] px-5 py-2.5 text-sm font-semibold text-white"
+    : "border border-[#e0e0e0] bg-white px-5 py-2.5 text-sm font-semibold text-[#1a1a1a] hover:border-[#1a1a1a]";
+}
+
 function TarjetaIngrediente({
   ing,
   stockEdiciones,
@@ -98,26 +116,37 @@ function TarjetaIngrediente({
   const ratio = ing.minimo > 0 ? Math.min(100, (ing.stock / (ing.minimo * 2)) * 100) : 0;
   const barra =
     ing.estado === "critico"
-      ? "bg-red-500"
+      ? "bg-[#e63946]"
       : ing.estado === "bajo"
-        ? "bg-orange-500"
-        : "bg-green-500";
-  const emoji = ing.estado === "critico" ? "🔴" : ing.estado === "bajo" ? "⚠️" : "✅";
+        ? "bg-[#f77f00]"
+        : "bg-[#2d6a4f]";
+  const bordeEstado =
+    ing.estado === "critico" ? UI.nuevo : ing.estado === "bajo" ? UI.preparacion : UI.listo;
+  const estadoLabel =
+    ing.estado === "critico" ? "Crítico" : ing.estado === "bajo" ? "Bajo" : "OK";
 
   return (
-    <article className="rounded-2xl bg-white p-4 md:p-5 border border-slate-200 shadow-sm">
+    <article
+      className="bg-white p-4 md:p-5 border border-[#e0e0e0] border-l-4"
+      style={{ borderLeftColor: bordeEstado }}
+    >
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-lg md:text-xl font-bold text-slate-900">{ing.nombre}</h3>
-        <span className="text-xl">{emoji}</span>
+        <h3 className="text-base md:text-lg font-semibold text-[#1a1a1a]">{ing.nombre}</h3>
+        <span
+          className="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 border"
+          style={{ color: bordeEstado, borderColor: bordeEstado }}
+        >
+          {estadoLabel}
+        </span>
       </div>
-      <p className="mt-2 text-slate-700 font-semibold">
+      <p className="mt-2 font-semibold tabular-nums text-[#1a1a1a]">
         {ing.stock}
         {ing.unidad}
       </p>
-      <div className="mt-3 h-3 w-full rounded-full bg-slate-200 overflow-hidden">
+      <div className="mt-3 h-1.5 w-full bg-[#eeeeee] overflow-hidden">
         <div className={`h-full ${barra}`} style={{ width: `${ratio}%` }} />
       </div>
-      <p className="mt-2 text-sm text-slate-500">
+      <p className="mt-2 text-sm text-[#666666]">
         Mínimo: {ing.minimo}
         {ing.unidad}
       </p>
@@ -129,20 +158,20 @@ function TarjetaIngrediente({
           inputMode="decimal"
           value={stockEdiciones[ing.key] ?? ""}
           onChange={(e) => onStockChange(ing.key, e.target.value)}
-          className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm font-medium text-slate-900"
+          className="w-24 border border-[#e0e0e0] bg-white px-2 py-1.5 text-sm font-medium text-[#1a1a1a]"
           placeholder="Cant."
         />
         <button
           type="button"
           onClick={() => onSumar(ing.key)}
-          className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-sm font-semibold"
+          className="border border-[#2d6a4f] bg-[#2d6a4f] px-3 py-1.5 text-sm font-semibold text-white"
         >
           Sumar
         </button>
         <button
           type="button"
           onClick={() => onEstablecer(ing.key)}
-          className="rounded-lg bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 text-sm font-semibold"
+          className="border border-[#1a1a1a] bg-white px-3 py-1.5 text-sm font-semibold text-[#1a1a1a] hover:bg-[#f0f0f0]"
         >
           Establecer
         </button>
@@ -483,109 +512,107 @@ export default function CocinaPage() {
 
   if (!token) {
     return (
-      <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+      <main
+        className="min-h-screen flex items-center justify-center p-6"
+        style={{ backgroundColor: UI.bg }}
+      >
         <form
           onSubmit={autenticar}
-          className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-8 space-y-6"
+          className="w-full max-w-md border border-[#e0e0e0] bg-white"
         >
-          <h1 className="text-3xl font-bold text-center">Il Popolo — Panel de Cocina</h1>
-          <p className="text-slate-300 text-center text-lg">Introduce la contraseña para entrar</p>
-          <input
-            type="password"
-            value={inputPass}
-            onChange={(e) => setInputPass(e.target.value)}
-            className="w-full rounded-xl bg-slate-800 border border-slate-600 px-4 py-4 text-xl"
-            placeholder="Contraseña"
-          />
-          <button
-            type="submit"
-            disabled={cargando}
-            className="w-full rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-60 py-4 text-2xl font-bold"
-          >
-            {cargando ? "Comprobando..." : "Entrar"}
-          </button>
-          {error ? <p className="text-red-300 text-center">{error}</p> : null}
+          <div className="px-8 py-6 text-white" style={{ backgroundColor: UI.header }}>
+            <h1 className="text-2xl font-semibold text-center tracking-tight">
+              Il Popolo
+            </h1>
+            <p className="mt-1 text-center text-sm text-[#cccccc]">Panel de cocina</p>
+          </div>
+          <div className="p-8 space-y-5">
+            <p className="text-center text-[#666666]">Introduce la contraseña para entrar</p>
+            <input
+              type="password"
+              value={inputPass}
+              onChange={(e) => setInputPass(e.target.value)}
+              className="w-full border border-[#e0e0e0] bg-white px-4 py-3 text-lg text-[#1a1a1a] focus:border-[#e63946] focus:outline-none"
+              placeholder="Contraseña"
+            />
+            <button
+              type="submit"
+              disabled={cargando}
+              className="w-full border border-[#e63946] bg-[#e63946] py-3 text-lg font-semibold text-white disabled:opacity-60"
+            >
+              {cargando ? "Comprobando..." : "Entrar"}
+            </button>
+            {error ? (
+              <p className="text-center text-sm font-medium text-[#e63946]">{error}</p>
+            ) : null}
+          </div>
         </form>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 p-4 md:p-6">
-      <header className="mb-6 rounded-2xl bg-white p-4 md:p-6 shadow-sm border border-slate-200">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900">
-            Il Popolo Pasta & Pizza — Panel de Cocina
-          </h1>
-          <div className="flex items-center gap-5">
+    <main className="min-h-screen" style={{ backgroundColor: UI.bg }}>
+      <header
+        className="border-b border-[#333333] px-4 py-5 md:px-8 md:py-6"
+        style={{ backgroundColor: UI.header }}
+      >
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#e63946]">
+              Il Popolo
+            </p>
+            <h1 className="mt-1 text-xl font-semibold text-white md:text-2xl">Panel de cocina</h1>
+          </div>
+          <div className="flex flex-wrap items-center gap-4 md:gap-6">
             <div className="flex items-center gap-2">
-              <span className="inline-flex h-4 w-4 animate-pulse rounded-full bg-green-500" />
-              <span className="text-lg font-semibold text-green-700">Conectado</span>
+              <span className="inline-block h-2 w-2 bg-[#e63946]" />
+              <span className="text-sm font-medium text-[#cccccc]">Conectado</span>
             </div>
-            <span className="text-xl md:text-3xl font-black text-slate-800 tabular-nums">
+            <span className="text-2xl font-semibold tabular-nums text-white md:text-3xl">
               {ahora.toLocaleTimeString("es-ES")}
             </span>
           </div>
         </div>
-        {error ? <p className="mt-3 text-red-600 font-semibold">{error}</p> : null}
+        {error ? (
+          <p className="mx-auto mt-3 max-w-[1600px] text-sm font-medium text-[#ff8a93]">{error}</p>
+        ) : null}
       </header>
 
-      <section className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6">
-        <div className="xl:col-span-3 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setTab("pedidos")}
-            className={`rounded-xl px-4 py-2 font-semibold border ${
-              tab === "pedidos"
-                ? "bg-slate-900 text-white border-slate-900"
-                : "bg-white text-slate-700 border-slate-300"
-            }`}
-          >
+      <div className="mx-auto max-w-[1600px] p-4 md:p-6">
+        <nav className="mb-6 flex flex-wrap gap-2 border-b border-[#e0e0e0] pb-4">
+          <button type="button" onClick={() => setTab("pedidos")} className={claseTab(tab === "pedidos")}>
             Pedidos
           </button>
-          <button
-            type="button"
-            onClick={() => setTab("inventario")}
-            className={`rounded-xl px-4 py-2 font-semibold border ${
-              tab === "inventario"
-                ? "bg-slate-900 text-white border-slate-900"
-                : "bg-white text-slate-700 border-slate-300"
-            }`}
-          >
+          <button type="button" onClick={() => setTab("inventario")} className={claseTab(tab === "inventario")}>
             Inventario
           </button>
-          <button
-            type="button"
-            onClick={() => setTab("recetas")}
-            className={`rounded-xl px-4 py-2 font-semibold border ${
-              tab === "recetas"
-                ? "bg-slate-900 text-white border-slate-900"
-                : "bg-white text-slate-700 border-slate-300"
-            }`}
-          >
+          <button type="button" onClick={() => setTab("recetas")} className={claseTab(tab === "recetas")}>
             Recetas
           </button>
-        </div>
+        </nav>
+
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6">
 
         {tab === "pedidos" ? (
           <>
             <Columna
-              titulo="🆕 Nuevos"
-              color="bg-red-100 border-red-300"
+              titulo="Nuevos"
+              bordeCard={UI.nuevo}
               pedidos={nuevos}
               accionLabel="Pasar a preparación"
               onAccion={(numeroPedido) => moverEstado(numeroPedido, "preparacion")}
             />
             <Columna
-              titulo="👨‍🍳 En preparación"
-              color="bg-orange-100 border-orange-300"
+              titulo="En preparación"
+              bordeCard={UI.preparacion}
               pedidos={preparacion}
               accionLabel="Marcar como listo"
               onAccion={(numeroPedido) => moverEstado(numeroPedido, "listo")}
             />
             <Columna
-              titulo="✅ Listos"
-              color="bg-green-100 border-green-300"
+              titulo="Listos"
+              bordeCard={UI.listo}
               pedidos={listos}
               accionLabel="Eliminar"
               onAccion={eliminarPedido}
@@ -600,7 +627,7 @@ export default function CocinaPage() {
               if (grupo.length === 0) return null;
               return (
                 <section key={id}>
-                  <h2 className="text-lg md:text-xl font-extrabold text-slate-800 border-b border-slate-200 pb-2 mb-4">
+                  <h2 className="mb-4 border-b border-[#e0e0e0] pb-2 text-sm font-semibold uppercase tracking-wide text-[#1a1a1a]">
                     {titulo}
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
@@ -623,12 +650,14 @@ export default function CocinaPage() {
           </div>
         ) : (
           <div className="xl:col-span-3 flex flex-col lg:flex-row gap-4 md:gap-6 min-h-[50vh]">
-            <aside className="lg:w-80 shrink-0 rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col max-h-[75vh]">
-              <div className="p-3 border-b border-slate-200 font-bold text-slate-900">Platos del menú</div>
+            <aside className="lg:w-80 shrink-0 flex max-h-[75vh] flex-col overflow-hidden border border-[#e0e0e0] bg-white">
+              <div className="border-b border-[#e0e0e0] p-3 text-sm font-semibold text-[#1a1a1a]">
+                Platos del menú
+              </div>
               <div className="overflow-y-auto flex-1 p-3 space-y-4">
                 {ORDEN_CATEGORIAS_RECETAS.map(({ categoria, etiqueta }) => (
                   <div key={categoria}>
-                    <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
+                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#666666]">
                       {etiqueta}
                     </h3>
                     <ul className="space-y-1">
@@ -641,15 +670,15 @@ export default function CocinaPage() {
                             <button
                               type="button"
                               onClick={() => setSelectedPlatoId(item.id)}
-                              className={`w-full text-left rounded-lg px-2 py-2 text-sm font-medium flex items-start gap-2 transition-colors ${
+                              className={`flex w-full items-start gap-2 border-l-2 px-2 py-2 text-left text-sm font-medium ${
                                 selectedPlatoId === item.id
-                                  ? "bg-slate-900 text-white"
-                                  : "hover:bg-slate-100 text-slate-800"
+                                  ? "border-[#e63946] bg-[#fff5f5] text-[#1a1a1a]"
+                                  : "border-transparent text-[#1a1a1a] hover:bg-[#f0f0f0]"
                               }`}
                             >
                               <span
-                                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                                  tiene ? "bg-green-500" : "bg-slate-300"
+                                className={`mt-1.5 h-2 w-2 shrink-0 ${
+                                  tiene ? "bg-[#2d6a4f]" : "bg-[#cccccc]"
                                 }`}
                                 title={tiene ? "Receta guardada" : "Sin receta en panel"}
                               />
@@ -663,15 +692,15 @@ export default function CocinaPage() {
                 ))}
               </div>
             </aside>
-            <div className="flex-1 rounded-2xl bg-white border border-slate-200 shadow-sm p-4 md:p-6">
+            <div className="flex-1 border border-[#e0e0e0] bg-white p-4 md:p-6">
               {selectedPlatoId ? (
                 <>
-                  <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 mb-1">
+                  <h2 className="mb-1 text-xl font-semibold text-[#1a1a1a] md:text-2xl">
                     {ORDEN_CATEGORIAS_RECETAS.flatMap(({ categoria }) => MENU.carta[categoria]).find(
                       (i) => i.id === selectedPlatoId
                     )?.nombre ?? selectedPlatoId}
                   </h2>
-                  <p className="text-sm text-slate-500 mb-6">
+                  <p className="mb-6 text-sm text-[#666666]">
                     Ingredientes consumidos por una unidad del plato (mismas unidades que en
                     inventario: g, ud o lata).
                   </p>
@@ -679,7 +708,7 @@ export default function CocinaPage() {
                     {filasReceta.map((fila) => (
                       <div
                         key={fila.localId}
-                        className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200"
+                        className="flex flex-wrap items-center gap-2 border border-[#e0e0e0] bg-[#fafafa] p-3"
                       >
                         <select
                           value={fila.key}
@@ -690,7 +719,7 @@ export default function CocinaPage() {
                               )
                             )
                           }
-                          className="flex-1 min-w-[180px] rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900"
+                          className="min-w-[180px] flex-1 border border-[#e0e0e0] bg-white px-3 py-2 text-sm font-medium text-[#1a1a1a]"
                         >
                           <option value="">— Ingrediente —</option>
                           {ORDEN_CATEGORIAS_INVENTARIO.map(({ id, titulo }) => {
@@ -725,7 +754,7 @@ export default function CocinaPage() {
                               )
                             );
                           }}
-                          className="w-28 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900"
+                          className="w-28 border border-[#e0e0e0] bg-white px-3 py-2 text-sm font-medium text-[#1a1a1a]"
                           placeholder="Cantidad"
                         />
                         <button
@@ -733,7 +762,7 @@ export default function CocinaPage() {
                           onClick={() =>
                             setFilasReceta((prev) => prev.filter((f) => f.localId !== fila.localId))
                           }
-                          className="rounded-lg border border-slate-300 bg-white hover:bg-red-50 text-slate-600 hover:text-red-700 px-3 py-2 text-sm font-bold"
+                          className="border border-[#e0e0e0] bg-white px-3 py-2 text-sm font-semibold text-[#666666] hover:border-[#e63946] hover:text-[#e63946]"
                           title="Quitar fila"
                         >
                           ✕
@@ -765,38 +794,39 @@ export default function CocinaPage() {
                   </div>
                 </>
               ) : (
-                <p className="text-slate-600">Selecciona un plato en la lista.</p>
+                <p className="text-[#666666]">Selecciona un plato en la lista.</p>
               )}
             </div>
           </div>
         )}
       </section>
+      </div>
       {pedidoPendienteEliminar ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
-            <h3 className="text-xl font-extrabold text-slate-900">¿El pedido ya estaba preparado?</h3>
-            <p className="mt-2 text-slate-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1a1a1a]/60 p-4">
+          <div className="w-full max-w-md border border-[#e0e0e0] bg-white p-6">
+            <h3 className="text-lg font-semibold text-[#1a1a1a]">¿El pedido ya estaba preparado?</h3>
+            <p className="mt-2 text-sm text-[#666666]">
               Pedido #{String(pedidoPendienteEliminar.numeroPedido).padStart(3, "0")}
             </p>
-            <div className="mt-5 grid grid-cols-1 gap-3">
+            <div className="mt-5 grid grid-cols-1 gap-2">
               <button
                 type="button"
                 onClick={() => void eliminarPedidoEfectivo(false)}
-                className="rounded-xl bg-red-600 hover:bg-red-500 text-white py-3 font-bold"
+                className="border border-[#e63946] bg-[#e63946] py-3 text-sm font-semibold text-white"
               >
                 Sí, ya preparado
               </button>
               <button
                 type="button"
                 onClick={() => void eliminarPedidoEfectivo(true)}
-                className="rounded-xl bg-amber-500 hover:bg-amber-400 text-white py-3 font-bold"
+                className="border border-[#f77f00] bg-[#f77f00] py-3 text-sm font-semibold text-white"
               >
                 No, sin preparar
               </button>
               <button
                 type="button"
                 onClick={() => setPedidoPendienteEliminar(null)}
-                className="rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 py-3 font-semibold"
+                className="border border-[#e0e0e0] bg-white py-3 text-sm font-semibold text-[#1a1a1a] hover:bg-[#f0f0f0]"
               >
                 Cancelar
               </button>
@@ -810,7 +840,7 @@ export default function CocinaPage() {
 
 function Columna({
   titulo,
-  color,
+  bordeCard,
   pedidos,
   accionLabel,
   onAccion,
@@ -818,7 +848,7 @@ function Columna({
   onPedirEliminarEfectivo,
 }: {
   titulo: string;
-  color: string;
+  bordeCard: string;
   pedidos: PedidoCocina[];
   accionLabel?: string;
   onAccion?: (numeroPedido: number) => void;
@@ -826,22 +856,25 @@ function Columna({
   onPedirEliminarEfectivo?: (pedido: PedidoCocina) => void;
 }) {
   return (
-    <div className={`rounded-2xl border p-4 md:p-5 ${color}`}>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900">{titulo}</h2>
-        <span className="rounded-full bg-white/80 px-3 py-1 text-lg font-bold">{pedidos.length}</span>
+    <div className="min-h-[200px]">
+      <div className="mb-4 flex items-center justify-between border-b border-[#e0e0e0] pb-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-[#1a1a1a]">{titulo}</h2>
+        <span className="border border-[#e0e0e0] bg-white px-2.5 py-0.5 text-sm font-semibold tabular-nums text-[#1a1a1a]">
+          {pedidos.length}
+        </span>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {pedidos.length === 0 ? (
-          <div className="rounded-xl bg-white/75 p-5 text-lg font-semibold text-slate-600">
+          <div className="border border-dashed border-[#e0e0e0] bg-white p-5 text-sm text-[#666666]">
             Sin pedidos
           </div>
         ) : (
           pedidos.map((p) => (
             <article
               key={p.numeroPedido}
-              className="rounded-xl bg-white p-4 md:p-5 border border-slate-200 shadow-sm"
+              className="border border-[#e0e0e0] border-l-4 bg-white p-4 md:p-5"
+              style={{ borderLeftColor: bordeCard }}
             >
               {(() => {
                 const formaPago = p.formaPago ?? p.tipoPago;
@@ -853,63 +886,65 @@ function Columna({
                   <>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-2xl font-black text-slate-900">
+                  <p className="text-2xl font-semibold tabular-nums text-[#1a1a1a]">
                     #{String(p.numeroPedido).padStart(3, "0")}
                   </p>
                   {p.tipoEntrega ? (
-                    <div className="mt-2 text-base font-semibold text-slate-700">
-                      {p.tipoEntrega === "local" ? (
-                        <span>🏪 Recogida en local</span>
-                      ) : (
-                        <span>🛵 Domicilio: {p.direccion?.trim() || "-"}</span>
-                      )}
-                    </div>
+                    <p className="mt-1 text-sm text-[#666666]">
+                      {p.tipoEntrega === "local"
+                        ? "Recogida en local"
+                        : `Domicilio: ${p.direccion?.trim() || "—"}`}
+                    </p>
                   ) : null}
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-slate-700">{maskTelefono(p.from)}</p>
-                  <p className="text-sm md:text-base text-slate-500">{formatHora(p.creadoEn)}</p>
+                  <p className="text-sm font-medium text-[#1a1a1a]">{maskTelefono(p.from)}</p>
+                  <p className="text-xs text-[#666666]">{formatHora(p.creadoEn)}</p>
                 </div>
               </div>
-              <ul className="mt-4 space-y-2">
+              <ul className="mt-4 space-y-1.5 border-t border-[#eeeeee] pt-3">
                 {p.lineas.map((l) => (
                   <li
                     key={`${p.numeroPedido}-${l.item.nombre}`}
-                    className="text-lg md:text-xl font-semibold text-slate-800"
+                    className="text-base font-medium text-[#1a1a1a]"
                   >
-                    {l.cantidad} x {l.item.nombre}
+                    {l.cantidad} × {l.item.nombre}
                   </li>
                 ))}
               </ul>
               {p.nota?.trim() ? (
-                <p className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-base font-semibold text-yellow-950">
-                  📝 {p.nota.trim()}
+                <p className="mt-3 border border-[#e0e0e0] border-l-2 border-l-[#f77f00] bg-[#fafafa] px-3 py-2 text-sm text-[#1a1a1a]">
+                  Nota: {p.nota.trim()}
                 </p>
               ) : null}
-              <p className="mt-4 text-2xl font-black text-slate-900">Total: {formatTotal(p.total)}</p>
+              <p className="mt-4 text-lg font-semibold text-[#1a1a1a]">
+                Total: {formatTotal(p.total)}
+              </p>
               <p
-                className={`mt-2 text-base font-bold ${
-                  esEfectivo ? "text-green-700" : "text-blue-700"
-                }`}
+                className="mt-1 text-xs font-semibold uppercase tracking-wide"
+                style={{ color: esEfectivo ? UI.listo : UI.accent }}
               >
-                {esEfectivo
-                  ? "💵 Pago en efectivo"
-                  : "💳 Pagado con tarjeta"}
+                {esEfectivo ? "Pago en efectivo" : "Pagado con tarjeta"}
               </p>
               {usarControlesEfectivo && yaCobrado ? (
-                <p className="mt-4 text-lg font-extrabold text-green-700">Cobrado ✓</p>
+                <p className="mt-3 text-sm font-semibold" style={{ color: UI.listo }}>
+                  Cobrado
+                </p>
               ) : null}
               {usarControlesEfectivo && !yaCobrado ? (
                 <div className="mt-4 grid grid-cols-1 gap-2">
                   <button
+                    type="button"
                     onClick={() => onCobrarEfectivo?.(p)}
-                    className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white py-3 text-base font-bold"
+                    className="w-full border py-2.5 text-sm font-semibold text-white"
+                    style={{ backgroundColor: UI.listo, borderColor: UI.listo }}
                   >
                     Cobrado en efectivo
                   </button>
                   <button
+                    type="button"
                     onClick={() => onPedirEliminarEfectivo?.(p)}
-                    className="w-full rounded-xl bg-red-600 hover:bg-red-500 text-white py-3 text-base font-bold"
+                    className="w-full border border-[#e63946] bg-[#e63946] py-2.5 text-sm font-semibold text-white"
                   >
                     Eliminar pedido
                   </button>
@@ -917,8 +952,9 @@ function Columna({
               ) : null}
               {!usarControlesEfectivo && accionLabel && onAccion ? (
                 <button
+                  type="button"
                   onClick={() => onAccion(p.numeroPedido)}
-                  className="mt-4 w-full rounded-xl bg-slate-900 hover:bg-slate-700 text-white py-4 text-xl font-bold"
+                  className="mt-4 w-full border border-[#1a1a1a] bg-[#1a1a1a] py-3 text-sm font-semibold text-white hover:bg-[#333333]"
                 >
                   {accionLabel}
                 </button>
