@@ -11,16 +11,10 @@ const anthropic = new Anthropic({
 });
 
 export const BIENVENIDA_CLIENTE =
-  "👋 ¡Bienvenido/a! Soy Braulio, tu asistente de *Il Popolo Pasta & Pizza*.\n\n" +
-  "📍 Calle Juan de Austria 11, Cox (Alicante)\n" +
-  "🕐 Lun-Mar cerrado · Mié 20:00-24:00 · Jue-Dom 13:00-16:00 y 20:00-24:00\n\n" +
-  "Estoy aquí para ayudarte con tu pedido:\n\n" +
-  "🍕 Escribe *menu* para ver la carta\n" +
-  "🛒 Dime lo que quieres pedir y lo anoto\n" +
-  "📝 Escribe *nota* para indicaciones especiales (sin gluten, sin cebolla, etc.)\n" +
-  "💳 Cuando termines, dime *pagar* para cerrar el pedido\n" +
-  "❌ Si quieres cancelar, dime *cancelar*\n\n" +
-  "¡Dime qué te apetece! 😊";
+  "¡Hola! Bienvenido a Il Popolo Pasta & Pizza 🍕 Soy Braulio, tu asistente online. " +
+  "Puedes hablarme con total naturalidad, como si chatearas con una persona. " +
+  "Pregúntame lo que quieras: el menú, ingredientes, alérgenos, horarios, recomendaciones... " +
+  "¡Estoy aquí para ayudarte y resolver todas tus dudas! ¿Sobre qué te puedo ayudar hoy?";
 
 function contextoNegocioIlPopolo(): string {
   return `Restaurante: ${INFO_IL_POPOLO.nombre}
@@ -175,8 +169,6 @@ export async function interpretarMensajeCliente(
 Cuando el cliente saluda por primera vez o escribe su primer mensaje, responde SIEMPRE con este texto exacto en el campo respuesta_directa:
 
 ${BIENVENIDA_CLIENTE}
-
-Nunca uses la palabra Hola para saludar; usa Bienvenido/a.
 
 Tu trabajo es interpretar mensajes de clientes por WhatsApp y devolver ÚNICAMENTE un JSON válido sin texto adicional.
 
