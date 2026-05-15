@@ -1,9 +1,17 @@
-// Verificación GET (Meta) y recepción POST de mensajes WhatsApp Cloud API — El Rincón de Pepe.
+// Verificación GET (Meta) y recepción POST de mensajes WhatsApp Cloud API.
 
 import { NextRequest, NextResponse } from "next/server";
 import { waitUntil } from "@vercel/functions";
 import { procesarMensaje } from "@/lib/popolo/pedidos";
 import { enviarMensaje } from "@/lib/popolo/whatsapp";
+
+export const dynamic = "force-dynamic";
+
+/** Token que Meta envía en `hub.verify_token` (configúralo igual en el panel de Meta). */
+function getVerifyToken(): string | undefined {
+  const t = process.env.PEPE_VERIFY_TOKEN?.trim();
+  return t || undefined;
+}
 
 /** Procesa el cuerpo del webhook; errores se registran en el .catch() del caller. */
 async function procesarWebhook(body: unknown): Promise<void> {
@@ -55,21 +63,39 @@ async function procesarWebhook(body: unknown): Promise<void> {
   await procesarMensaje(from, texto);
 }
 
+/**
+ * Verificación del webhook (Meta): GET con hub.mode=subscribe, hub.verify_token y hub.challenge.
+ * Si el token coincide, hay que devolver el challenge en texto plano (status 200).
+ */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const params = req.nextUrl.searchParams;
   const mode = params.get("hub.mode");
   const token = params.get("hub.verify_token");
   const challenge = params.get("hub.challenge");
 
-  if (mode === null || token === null || challenge === null) {
+  if (mode !== "subscribe") {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+
+  if (challenge === null || token === null) {
     return new NextResponse("Bad Request", { status: 400 });
   }
 
-  if (mode === "subscribe" && token === process.env.PEPE_VERIFY_TOKEN) {
-    return new NextResponse(challenge, { status: 200 });
+  const expected = getVerifyToken();
+  if (!expected) {
+    console.error("[Popolo webhook] Falta PEPE_VERIFY_TOKEN en variables de entorno");
+    return new NextResponse("Webhook no configurado", { status: 503 });
   }
 
-  return new NextResponse("Forbidden", { status: 403 });
+  if (token.trim() !== expected) {
+    console.warn("[Popolo webhook] hub.verify_token no coincide con PEPE_VERIFY_TOKEN");
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+
+  return new NextResponse(challenge, {
+    status: 200,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
