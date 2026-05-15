@@ -24,6 +24,7 @@ interface PedidoCocina {
 interface IngredienteInventario {
   key: string;
   nombre: string;
+  emoji?: string;
   stock: number;
   minimo: number;
   unidad: "g" | "ud" | "lata";
@@ -131,7 +132,12 @@ function TarjetaIngrediente({
       style={{ borderLeftColor: bordeEstado }}
     >
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-base md:text-lg font-semibold text-[#1a1a1a]">{ing.nombre}</h3>
+        <h3 className="text-base md:text-lg font-semibold text-[#1a1a1a]">
+          <span className="mr-2" aria-hidden>
+            {ing.emoji ?? "📦"}
+          </span>
+          {ing.nombre}
+        </h3>
         <span
           className="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 border"
           style={{ color: bordeEstado, borderColor: bordeEstado }}
@@ -731,7 +737,7 @@ export default function CocinaPage() {
                               <optgroup key={id} label={titulo}>
                                 {grupo.map((ing) => (
                                   <option key={ing.key} value={ing.key}>
-                                    {ing.nombre}
+                                    {(ing.emoji ?? "📦") + " " + ing.nombre}
                                   </option>
                                 ))}
                               </optgroup>

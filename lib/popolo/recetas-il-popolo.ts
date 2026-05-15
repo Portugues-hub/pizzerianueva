@@ -2,10 +2,128 @@
 
 type StockIngrediente = {
   nombre: string;
+  emoji: string;
   stockGramos: number;
   minimoGramos: number;
   unidad: "g" | "ud" | "lata";
 };
+
+/** Emoji representativo por clave de ingrediente (panel de cocina). */
+export const EMOJI_POR_INGREDIENTE: Record<string, string> = {
+  masa_pizza: "🫓",
+  masa_pinsa: "🫓",
+  salsa_tomate: "🍅",
+  mozzarella: "🧀",
+  mozzarella_vegana: "🌱",
+  oregano: "🌿",
+  jamon_york: "🥓",
+  jamon_serrano: "🥩",
+  beicon: "🥓",
+  atun: "🐟",
+  cebolla: "🧅",
+  pimiento: "🫑",
+  pimiento_asado: "🫑",
+  olivas: "🫒",
+  huevo: "🥚",
+  queso_cabra: "🧀",
+  rucula: "🥬",
+  parmesano: "🧀",
+  champiñon: "🍄",
+  alcachofas: "🌿",
+  salami: "🥓",
+  anchoas: "🐟",
+  gorgonzola: "🧀",
+  guindilla: "🌶️",
+  pollo_vegano: "🌱",
+  salsa_barbacoa: "🍖",
+  berenjena: "🍆",
+  albahaca: "🌿",
+  pera: "🍐",
+  pepperoni: "🍕",
+  pollo: "🍗",
+  salmon: "🐟",
+  huevas: "🐟",
+  tomate_cherry: "🍅",
+  burrata: "🧀",
+  rigatoni: "🍝",
+  espagueti: "🍝",
+  papardelle: "🍝",
+  salsa_bolognesa: "🍝",
+  carne_picada: "🥩",
+  guanciale: "🥓",
+  pimienta: "🧂",
+  secreto: "🥩",
+  salsa_nueces: "🥜",
+  nata: "🥛",
+  gambas: "🦐",
+  mejillones: "🦪",
+  ajo: "🧄",
+  pasta_rellena: "🥟",
+  salsa_trufa: "🍄",
+  requeson: "🧀",
+  espinacas: "🥬",
+  nueces: "🥜",
+  pesto_almendras: "🌿",
+  tomate_seco: "🍅",
+  provolone: "🧀",
+  foie: "🦆",
+  aceite_trufa: "🫒",
+  laminas_lasana: "🍝",
+  bechamel: "🥛",
+  pan_ajo: "🥖",
+  mantequilla_ajo: "🧈",
+  perejil: "🌿",
+  harina: "🌾",
+  miel: "🍯",
+  aceite_oliva: "🫒",
+  patata: "🥔",
+  leche: "🥛",
+  verduras_asadas: "🥗",
+  boletus: "🍄",
+  croqueta_masa: "🥟",
+  mayonesa: "🥫",
+  pistachos: "🥜",
+  lechuga: "🥬",
+  tomate: "🍅",
+  zanahoria: "🥕",
+  esparrago: "🌿",
+  salsa_rosa: "🥫",
+  salsa_cesar: "🥫",
+  crouton: "🍞",
+  vinagreta_mango: "🥭",
+  brotes: "🌱",
+  tartufata: "🍄",
+  patata_cocida: "🥔",
+  guisantes: "🫛",
+  surimi: "🦀",
+  pan_arabe: "🫓",
+  lomo: "🥩",
+  aguacate: "🥑",
+  chocolate: "🍫",
+  chocolate_blanco: "🍫",
+  chocolate_leche: "🍫",
+  queso_tarta: "🍰",
+  base_galleta: "🍪",
+  mascarpone: "🧀",
+  cafe: "☕",
+  cacao: "🍫",
+  bizcocho: "🍰",
+  azucar: "🍬",
+  vainilla: "🌿",
+  torta_chocolate: "🍫",
+  helado: "🍦",
+  nocilla: "🍫",
+  salsa_nata: "🥛",
+  roquefort: "🧀",
+  carne_hamburguesa: "🥩",
+  pollo_empanado: "🍗",
+  piña: "🍍",
+  pasas: "🍇",
+};
+
+export function emojiDeIngrediente(key: string): string {
+  return EMOJI_POR_INGREDIENTE[key] ?? "📦";
+}
 
 /** Base pizza estándar (hostelería). */
 const PZ = { masa_pizza: 250, salsa_tomate: 80, mozzarella: 100, oregano: 2 } as const;
@@ -299,9 +417,17 @@ export const RECETAS_IL_POPOLO: Record<string, Record<string, number>> = {
   po06: { torta_chocolate: 70, helado: 50, nocilla: 20 },
 };
 
+function mapaStockConEmoji(
+  entradas: Array<[string, Omit<StockIngrediente, "emoji">]>
+): Map<string, StockIngrediente> {
+  return new Map(
+    entradas.map(([key, data]) => [key, { ...data, emoji: emojiDeIngrediente(key) }])
+  );
+}
+
 /** Stock inicial de ingredientes Il Popolo (unidad en gramos salvo ud/lata). */
 export function crearStockIlPopolo(): Map<string, StockIngrediente> {
-  return new Map<string, StockIngrediente>([
+  return mapaStockConEmoji([
     ["masa_pizza", { nombre: "Masa de pizza", stockGramos: 50000, minimoGramos: 15000, unidad: "g" }],
     ["masa_pinsa", { nombre: "Masa de pinsa", stockGramos: 20000, minimoGramos: 8000, unidad: "g" }],
     ["salsa_tomate", { nombre: "Salsa de tomate", stockGramos: 3000, minimoGramos: 1500, unidad: "g" }],

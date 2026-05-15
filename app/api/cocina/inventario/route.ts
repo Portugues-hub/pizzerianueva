@@ -3,6 +3,7 @@ import {
   aplicarCambioStockPanel,
   cargarStockEnMemoria,
   categoriaDeIngrediente,
+  emojiDeIngrediente,
   getEstadoIngrediente,
   getEstadoStock,
 } from "@/lib/popolo/inventario";
@@ -24,6 +25,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .map(([key, ing]) => ({
       key,
       nombre: ing.nombre,
+      emoji: ing.emoji ?? emojiDeIngrediente(key),
       stock: ing.stockGramos,
       minimo: ing.minimoGramos,
       unidad: ing.unidad,

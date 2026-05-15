@@ -9,6 +9,7 @@ import { RECETAS_IL_POPOLO, crearStockIlPopolo } from "./recetas-il-popolo";
 export {
   RECETAS_IL_POPOLO,
   categoriaDeIngrediente,
+  emojiDeIngrediente,
   type CategoriaInventario,
 } from "./recetas-il-popolo";
 
@@ -17,6 +18,7 @@ const STORE_RECETAS_KEY = "pepe:recetas";
 
 export interface Ingrediente {
   nombre: string;
+  emoji: string;
   stockGramos: number;
   minimoGramos: number;
   unidad: "g" | "ud" | "lata";
