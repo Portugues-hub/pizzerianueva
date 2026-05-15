@@ -633,7 +633,7 @@ export default function CocinaPage() {
               if (grupo.length === 0) return null;
               return (
                 <section key={id}>
-                  <h2 className="mb-4 border-b border-[#e0e0e0] pb-2 text-sm font-semibold uppercase tracking-wide text-[#1a1a1a]">
+                  <h2 className="mb-5 border-l-4 border-[#e63946] pl-3 text-xl font-bold tracking-tight text-[#1a1a1a] md:text-2xl">
                     {titulo}
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
