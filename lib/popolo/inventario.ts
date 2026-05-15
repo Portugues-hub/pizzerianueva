@@ -143,6 +143,25 @@ const RECETAS_POR_DEFECTO: Record<string, Record<string, number>> = {
   p47: { chocolate: 80 },
 };
 
+/** Receta genérica por prefijo de id de plato (Il Popolo: pz01, pf02, la01…). */
+const RECETA_BASE_POR_PREFIJO: Record<string, Record<string, number>> = {
+  pz: { mozzarella: 140, salsa_tomate: 80, jamon_york: 40 },
+  pi: { mozzarella: 140, salsa_tomate: 80, jamon_york: 40 },
+  pf: { mozzarella: 40, salsa_tomate: 60, jamon_york: 30 },
+  pr: { mozzarella: 50, salsa_tomate: 40 },
+  la: { mozzarella: 80, salsa_tomate: 70, carne_hamburguesa: 60 },
+  en: { mozzarella: 30, salsa_tomate: 20 },
+  es: { mozzarella: 30, cebolla: 20, jamon_york: 25 },
+  eq: { mozzarella: 25, huevo: 0.5 },
+  pa: { mozzarella: 40, salsa_tomate: 30, jamon_york: 35 },
+  po: { chocolate: 60 },
+};
+
+function prefijoPlatoId(platoId: string): string | undefined {
+  const m = platoId.trim().match(/^([a-z]+)\d+$/i);
+  return m?.[1]?.toLowerCase();
+}
+
 function crearMapaStockPorDefecto(): Map<string, Ingrediente> {
   return new Map<string, Ingrediente>([
     ["mozzarella", { nombre: "Mozzarella", stockGramos: 3000, minimoGramos: 2000, unidad: "g" }],
@@ -209,7 +228,14 @@ function recetaEfectiva(
   if (Object.prototype.hasOwnProperty.call(recetasGuardadas, platoId)) {
     return recetasGuardadas[platoId];
   }
-  return RECETAS_POR_DEFECTO[platoId];
+  if (RECETAS_POR_DEFECTO[platoId]) {
+    return RECETAS_POR_DEFECTO[platoId];
+  }
+  const prefijo = prefijoPlatoId(platoId);
+  if (prefijo && RECETA_BASE_POR_PREFIJO[prefijo]) {
+    return RECETA_BASE_POR_PREFIJO[prefijo];
+  }
+  return undefined;
 }
 
 /** Recetas guardadas en almacén (solo las configuradas desde el panel). */
@@ -296,7 +322,14 @@ export async function registrarPedido(lineas: LineaPedido[]): Promise<void> {
   const recetasGuardadas = await leerRecetasGuardadas();
   for (const linea of lineas) {
     const receta = recetaEfectiva(recetasGuardadas, linea.item.id);
-    if (!receta || Object.keys(receta).length === 0) continue;
+    if (!receta || Object.keys(receta).length === 0) {
+      console.warn(
+        "[Pepe inventario] Sin receta para plato",
+        linea.item.id,
+        linea.item.nombre
+      );
+      continue;
+    }
 
     for (const [ingKey, cantidadPorUnidad] of Object.entries(receta)) {
       const consumo = cantidadPorUnidad * linea.cantidad;
