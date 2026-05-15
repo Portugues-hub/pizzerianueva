@@ -1,8 +1,12 @@
-// Stock de ingredientes en almacén en memoria y descuento automático por pedidos confirmados (El Rincón de Pepe).
+// Stock de ingredientes en almacén y descuento automático por pedidos confirmados (Il Popolo).
 
 import { MENU } from "./menu";
 import { memoryStore } from "./memory-store";
 import type { LineaPedido } from "./pedidos";
+import { RECETAS_IL_POPOLO, crearStockIlPopolo } from "./recetas-il-popolo";
+
+/** Carta Il Popolo: recetas por plato (ver `recetas-il-popolo.ts`). */
+export { RECETAS_IL_POPOLO };
 
 const STORE_STOCK_KEY = "pepe:inventario:stock";
 const STORE_RECETAS_KEY = "pepe:recetas";
@@ -16,145 +20,21 @@ export interface Ingrediente {
 
 export type EstadoStock = "critico" | "bajo" | "ok";
 
-/** Recetas por defecto si el plato no tiene entrada guardada (pepe:recetas). */
-const RECETAS_POR_DEFECTO: Record<string, Record<string, number>> = {
-  p01: { mozzarella: 150, salsa_tomate: 80, jamon_york: 60 },
-  p02: {
-    mozzarella: 140,
-    salsa_tomate: 80,
-    jamon_york: 60,
-    champiñon: 50,
-    cebolla: 30,
-  },
-  p03: {
-    mozzarella: 140,
-    salsa_tomate: 80,
-    jamon_serrano: 80,
-    cebolla: 30,
-    huevo: 1,
-  },
-  p05: {
-    mozzarella: 140,
-    salsa_tomate: 80,
-    jamon_york: 60,
-    champiñon: 50,
-  },
-  p06: {
-    mozzarella: 140,
-    salsa_tomate: 80,
-    jamon_york: 50,
-    salami: 40,
-  },
-  p07: {
-    mozzarella: 140,
-    salsa_tomate: 80,
-    jamon_york: 50,
-    anchoas: 30,
-    cebolla: 30,
-  },
-  p08: {
-    mozzarella: 130,
-    salsa_tomate: 80,
-    jamon_york: 50,
-    espinacas: 40,
-    gambas: 80,
-    cebolla: 30,
-  },
-  p09: { mozzarella: 130, salsa_tomate: 80, atun: 1, anchoas: 25 },
-  p12: {
-    mozzarella: 130,
-    salsa_tomate: 80,
-    atun: 1,
-    salmon: 80,
-    gambas: 80,
-    cebolla: 30,
-  },
-  p13: {
-    mozzarella: 140,
-    salsa_tomate: 80,
-    espinacas: 40,
-    champiñon: 40,
-    pimiento: 30,
-    cebolla: 30,
-  },
-  p14: {
-    mozzarella: 140,
-    salsa_barbacoa: 90,
-    carne_hamburguesa: 100,
-    cebolla: 40,
-  },
-  p15: { mozzarella: 140, salsa_tomate: 80, beicon: 60, cebolla: 30 },
-  p17: {
-    mozzarella: 100,
-    salsa_tomate: 80,
-    queso_cabra: 40,
-    roquefort: 30,
-    parmesano: 30,
-  },
-  p18: {
-    mozzarella: 130,
-    salsa_tomate: 80,
-    beicon: 50,
-    jamon_york: 50,
-    cebolla: 30,
-    huevo: 1,
-  },
-  p23: {
-    mozzarella: 140,
-    salsa_tomate: 80,
-    jamon_york: 50,
-    pepperoni: 50,
-  },
-  p25: { mozzarella: 140, salsa_tomate: 80, atun: 1, cebolla: 30 },
-  p34: { mozzarella: 140, salsa_tomate: 80, jamon_york: 60, piña: 60 },
-  p35: {
-    mozzarella: 140,
-    salsa_nata: 90,
-    beicon: 60,
-    champiñon: 50,
-    cebolla: 30,
-  },
-  p43: {
-    mozzarella: 120,
-    salsa_tomate: 80,
-    espinacas: 40,
-    champiñon: 40,
-    queso_cabra: 40,
-    miel: 20,
-    nueces: 20,
-    pasas: 15,
-  },
-  p45: {
-    mozzarella: 130,
-    salsa_barbacoa: 90,
-    pollo: 90,
-    carne_hamburguesa: 80,
-    beicon: 60,
-    huevo: 1,
-    cebolla: 40,
-  },
-  p46: {
-    mozzarella: 130,
-    salsa_tomate: 80,
-    rucula: 30,
-    pollo_empanado: 90,
-    beicon: 50,
-  },
-  p47: { chocolate: 80 },
-};
+/** Recetas por defecto (carta Il Popolo — IDs de menu.ts). */
+const RECETAS_POR_DEFECTO: Record<string, Record<string, number>> = RECETAS_IL_POPOLO;
 
-/** Receta genérica por prefijo de id de plato (Il Popolo: pz01, pf02, la01…). */
+/** Respaldo si falta un id concreto (no debería ocurrir con la carta actual). */
 const RECETA_BASE_POR_PREFIJO: Record<string, Record<string, number>> = {
-  pz: { mozzarella: 140, salsa_tomate: 80, jamon_york: 40 },
-  pi: { mozzarella: 140, salsa_tomate: 80, jamon_york: 40 },
-  pf: { mozzarella: 40, salsa_tomate: 60, jamon_york: 30 },
-  pr: { mozzarella: 50, salsa_tomate: 40 },
-  la: { mozzarella: 80, salsa_tomate: 70, carne_hamburguesa: 60 },
-  en: { mozzarella: 30, salsa_tomate: 20 },
-  es: { mozzarella: 30, cebolla: 20, jamon_york: 25 },
-  eq: { mozzarella: 25, huevo: 0.5 },
-  pa: { mozzarella: 40, salsa_tomate: 30, jamon_york: 35 },
-  po: { chocolate: 60 },
+  pz: { masa_pizza: 250, salsa_tomate: 80, mozzarella: 100, oregano: 2 },
+  pi: { masa_pinsa: 280, salsa_tomate: 80, mozzarella: 100, oregano: 2 },
+  pf: { espagueti: 180, salsa_tomate: 50, parmesano: 15 },
+  pr: { pasta_rellena: 200, salsa_tomate: 40, parmesano: 15 },
+  la: { laminas_lasana: 120, salsa_bolognesa: 120, bechamel: 80, mozzarella: 60 },
+  en: { aceite_oliva: 10, harina: 15 },
+  es: { lechuga: 80, tomate: 40, aceite_oliva: 10 },
+  eq: { patata_cocida: 100, mayonesa: 35 },
+  pa: { pan_arabe: 180, lechuga: 25, tomate: 35 },
+  po: { chocolate: 50, nata: 20 },
 };
 
 function prefijoPlatoId(platoId: string): string | undefined {
@@ -163,38 +43,7 @@ function prefijoPlatoId(platoId: string): string | undefined {
 }
 
 function crearMapaStockPorDefecto(): Map<string, Ingrediente> {
-  return new Map<string, Ingrediente>([
-    ["mozzarella", { nombre: "Mozzarella", stockGramos: 3000, minimoGramos: 2000, unidad: "g" }],
-    ["jamon_york", { nombre: "Jamón york", stockGramos: 1500, minimoGramos: 800, unidad: "g" }],
-    ["jamon_serrano", { nombre: "Jamón serrano", stockGramos: 800, minimoGramos: 300, unidad: "g" }],
-    ["beicon", { nombre: "Beicon", stockGramos: 500, minimoGramos: 400, unidad: "g" }],
-    ["salsa_tomate", { nombre: "Salsa de tomate", stockGramos: 3000, minimoGramos: 1500, unidad: "g" }],
-    ["salsa_barbacoa", { nombre: "Salsa barbacoa", stockGramos: 1000, minimoGramos: 400, unidad: "g" }],
-    ["salsa_nata", { nombre: "Salsa de nata", stockGramos: 600, minimoGramos: 300, unidad: "g" }],
-    ["champiñon", { nombre: "Champiñón", stockGramos: 800, minimoGramos: 400, unidad: "g" }],
-    ["cebolla", { nombre: "Cebolla", stockGramos: 1000, minimoGramos: 300, unidad: "g" }],
-    ["gambas", { nombre: "Gambas", stockGramos: 350, minimoGramos: 400, unidad: "g" }],
-    ["salmon", { nombre: "Salmón", stockGramos: 380, minimoGramos: 300, unidad: "g" }],
-    ["atun", { nombre: "Atún", stockGramos: 6, minimoGramos: 3, unidad: "lata" }],
-    ["anchoas", { nombre: "Anchoas", stockGramos: 200, minimoGramos: 100, unidad: "g" }],
-    ["pepperoni", { nombre: "Pepperoni", stockGramos: 500, minimoGramos: 300, unidad: "g" }],
-    ["salami", { nombre: "Salami", stockGramos: 400, minimoGramos: 200, unidad: "g" }],
-    ["queso_cabra", { nombre: "Queso de cabra", stockGramos: 400, minimoGramos: 200, unidad: "g" }],
-    ["parmesano", { nombre: "Parmesano", stockGramos: 300, minimoGramos: 150, unidad: "g" }],
-    ["roquefort", { nombre: "Roquefort", stockGramos: 250, minimoGramos: 100, unidad: "g" }],
-    ["espinacas", { nombre: "Espinacas", stockGramos: 500, minimoGramos: 200, unidad: "g" }],
-    ["pimiento", { nombre: "Pimiento", stockGramos: 400, minimoGramos: 150, unidad: "g" }],
-    ["carne_hamburguesa", { nombre: "Carne hamburguesa", stockGramos: 800, minimoGramos: 400, unidad: "g" }],
-    ["pollo", { nombre: "Pollo", stockGramos: 700, minimoGramos: 300, unidad: "g" }],
-    ["pollo_empanado", { nombre: "Pollo empanado", stockGramos: 600, minimoGramos: 300, unidad: "g" }],
-    ["huevo", { nombre: "Huevo", stockGramos: 18, minimoGramos: 6, unidad: "ud" }],
-    ["piña", { nombre: "Piña", stockGramos: 400, minimoGramos: 150, unidad: "g" }],
-    ["rucula", { nombre: "Rúcula", stockGramos: 200, minimoGramos: 80, unidad: "g" }],
-    ["nueces", { nombre: "Nueces", stockGramos: 200, minimoGramos: 80, unidad: "g" }],
-    ["miel", { nombre: "Miel", stockGramos: 300, minimoGramos: 100, unidad: "g" }],
-    ["pasas", { nombre: "Pasas", stockGramos: 200, minimoGramos: 80, unidad: "g" }],
-    ["chocolate", { nombre: "Chocolate", stockGramos: 400, minimoGramos: 150, unidad: "g" }],
-  ]);
+  return crearStockIlPopolo() as Map<string, Ingrediente>;
 }
 
 let stock = crearMapaStockPorDefecto();
