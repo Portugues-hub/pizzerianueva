@@ -12,9 +12,8 @@ const anthropic = new Anthropic({
 
 export const BIENVENIDA_CLIENTE =
   "¡Hola! Bienvenido a Il Popolo Pasta & Pizza 🍕 Soy Braulio, tu asistente online. " +
-  "Puedes hablarme con total naturalidad, como si chatearas con una persona. " +
-  "Pregúntame lo que quieras: el menú, ingredientes, alérgenos, horarios, recomendaciones... " +
-  "¡Estoy aquí para ayudarte y resolver todas tus dudas! ¿Sobre qué te puedo ayudar hoy?";
+  "Puedes hablarme con total naturalidad: pedir, consultar la carta, horarios, alérgenos o lo que necesites. " +
+  "¿En qué puedo ayudarte hoy?";
 
 function contextoNegocioIlPopolo(): string {
   return `Restaurante: ${INFO_IL_POPOLO.nombre}
@@ -31,7 +30,8 @@ function reglasAsistenteCliente(): string {
 Hablas siempre en español, con tono amable, cercano y natural (como un camarero de confianza).
 Conoces la carta, los horarios y la ubicación del restaurante.
 NUNCA menciones "Pepe", "Rincón de Pepe", hamburguesas, fajitas ni ningún negocio distinto de Il Popolo.
-Si preguntan por platos que no existen en la carta, indícalo con amabilidad y sugiere alternativas de la carta real.`;
+Si preguntan por platos que no existen en la carta, indícalo con amabilidad y sugiere alternativas de la carta real.
+NUNCA pidas al cliente que escriba comandos fijos (menu, pago, pido, etc.): todo es conversación natural.`;
 }
 
 interface ResumenVentas {
@@ -153,58 +153,121 @@ ${contextoNegocioIlPopolo()}`;
   return textoDesdeRespuestaClaude(message);
 }
 
+export type IntencionCliente =
+  | "pedir"
+  | "ver_menu"
+  | "ver_pedido"
+  | "cancelar"
+  | "pagar"
+  | "anadir_nota"
+  | "elegir_entrega"
+  | "indicar_direccion"
+  | "elegir_pago"
+  | "pregunta"
+  | "otro";
+
+export interface ContextoPedidoCliente {
+  lineasResumen: string;
+  estado: "sin_pedido" | "abierto" | "pagando" | "otro";
+  tipoEntrega?: "local" | "domicilio";
+  direccion?: string;
+  esperandoMetodoPago?: boolean;
+  nota?: string;
+  pendiente?: string;
+}
+
 export interface InterpretacionCliente {
-  intencion: "pedir" | "ver_menu" | "ver_pedido" | "cancelar" | "pagar" | "pregunta" | "otro";
+  intencion: IntencionCliente;
   items?: Array<{ nombre: string; cantidad: number }>;
   respuesta_directa?: string;
+  nota?: string;
+  tipo_entrega?: "local" | "domicilio";
+  direccion?: string;
+  metodo_pago?: "tarjeta" | "efectivo";
 }
 
 export async function interpretarMensajeCliente(
   mensaje: string,
-  pedidoActual: string,
-  _menuResumen: string
+  contexto: ContextoPedidoCliente
 ): Promise<InterpretacionCliente> {
+  const ctxLineas = contexto.lineasResumen || "Sin platos";
+  const ctxEstado = contexto.estado;
+  const ctxEntrega = contexto.tipoEntrega
+    ? contexto.tipoEntrega === "local"
+      ? "recogida en local"
+      : "domicilio"
+    : "sin elegir";
+  const ctxDir = contexto.direccion?.trim() || "sin indicar";
+  const ctxPago = contexto.esperandoMetodoPago
+    ? "esperando que elija tarjeta o efectivo"
+    : "no";
+  const ctxNota = contexto.nota?.trim() || "ninguna";
+  const ctxPendiente = contexto.pendiente || "ninguno";
+
   const system = `${reglasAsistenteCliente()}
 
-Cuando el cliente saluda por primera vez o escribe su primer mensaje, responde SIEMPRE con este texto exacto en el campo respuesta_directa:
-
-${BIENVENIDA_CLIENTE}
-
-Tu trabajo es interpretar mensajes de clientes por WhatsApp y devolver ÚNICAMENTE un JSON válido sin texto adicional.
+Interpretas mensajes de clientes por WhatsApp y devuelves ÚNICAMENTE un JSON válido (sin markdown ni texto extra).
 
 ${contextoNegocioIlPopolo()}
 
-Pedido actual del cliente:
-${pedidoActual || "Sin pedido abierto"}
+Estado actual del pedido del cliente:
+- Platos: ${ctxLineas}
+- Estado del pedido: ${ctxEstado}
+- Tipo de entrega: ${ctxEntrega}
+- Dirección (si domicilio): ${ctxDir}
+- Elección de pago: ${ctxPago}
+- Nota del pedido: ${ctxNota}
+- Paso pendiente en el flujo: ${ctxPendiente}
 
-Responde SOLO con este JSON según la intención del cliente:
+Intenciones (elige la más adecuada según el mensaje y el estado):
 
-Si quiere pedir algo (usa el nombre exacto del plato de la carta):
-{"intencion":"pedir","items":[{"nombre":"nombre exacto del plato","cantidad":1}]}
+pedir — quiere añadir platos (nombre EXACTO de la carta, cantidad si la dice):
+{"intencion":"pedir","items":[{"nombre":"...","cantidad":1}]}
 
-Si quiere ver el menú:
+ver_menu — quiere ver la carta completa:
 {"intencion":"ver_menu"}
 
-Si quiere ver su pedido actual:
+ver_pedido — quiere ver el resumen de su pedido:
 {"intencion":"ver_pedido"}
 
-Si quiere cancelar:
+cancelar — quiere cancelar el pedido abierto:
 {"intencion":"cancelar"}
 
-Si quiere pagar:
+pagar — quiere cerrar/confirmar el pedido (puede incluir en el mismo JSON tipo_entrega, direccion y metodo_pago si el cliente lo dice de una vez):
 {"intencion":"pagar"}
+{"intencion":"pagar","tipo_entrega":"local"}
+{"intencion":"pagar","tipo_entrega":"domicilio","direccion":"calle y número"}
+{"intencion":"pagar","metodo_pago":"tarjeta"}
 
-Si pregunta por horarios, dirección, carta o el restaurante:
-{"intencion":"pregunta","respuesta_directa":"respuesta breve y amable en español, solo con datos de Il Popolo"}
+anadir_nota — quiere dejar una nota o personalización (sin gluten, sin cebolla…):
+{"intencion":"anadir_nota","nota":"texto de la nota"}
 
-Para cualquier otra cosa:
+elegir_entrega — elige recoger en local o domicilio (durante el cierre del pedido):
+{"intencion":"elegir_entrega","tipo_entrega":"local"}
+{"intencion":"elegir_entrega","tipo_entrega":"domicilio"}
+
+indicar_direccion — da la dirección para entrega a domicilio:
+{"intencion":"indicar_direccion","direccion":"dirección completa"}
+
+elegir_pago — elige tarjeta online o efectivo al recibir:
+{"intencion":"elegir_pago","metodo_pago":"tarjeta"}
+{"intencion":"elegir_pago","metodo_pago":"efectivo"}
+
+pregunta — pregunta sobre horarios, ubicación, carta, alérgenos, recomendaciones del restaurante:
+{"intencion":"pregunta","respuesta_directa":"respuesta breve y amable solo con datos de Il Popolo"}
+
+otro — saludos, charla general o algo que no encaje en las acciones anteriores; responde con naturalidad:
 {"intencion":"otro","respuesta_directa":"respuesta amable en español"}
+
+Si el cliente solo envía su dirección y el paso pendiente es la dirección, usa indicar_direccion.
+Si dice "tarjeta", "con tarjeta", "pago online", usa elegir_pago con metodo_pago tarjeta.
+Si dice "efectivo", "en metálico", "al recibir", usa elegir_pago con metodo_pago efectivo.
 
 IMPORTANTE: Devuelve SOLO el JSON, sin explicaciones ni texto adicional.`;
 
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5",
-    max_tokens: 300,
+    max_tokens: 400,
     stream: false,
     system,
     messages: [{ role: "user", content: mensaje }],
@@ -226,7 +289,7 @@ IMPORTANTE: Devuelve SOLO el JSON, sin explicaciones ni texto adicional.`;
 export function textoRespuestaParaCliente(interpretacion: InterpretacionCliente): string {
   const raw = interpretacion.respuesta_directa;
   if (!raw || typeof raw !== "string") {
-    return "No he entendido tu mensaje. Escribe *menu* para ver la carta.";
+    return "No he entendido bien. ¿Puedes contarme de nuevo qué necesitas?";
   }
   return raw.trim();
 }
