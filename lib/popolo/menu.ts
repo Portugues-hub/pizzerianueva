@@ -177,3 +177,29 @@ export function formatearMenu(): string {
   }
   return bloques.join("\n\n");
 }
+
+/** Carta completa con precios y descripciones (prompts de Claude / asistente). */
+export function formatearMenuParaAsistente(): string {
+  const bloques: string[] = [];
+  for (const cat of ORDEN_CATEGORIAS) {
+    const { titulo } = TITULO_CATEGORIA[cat];
+    const lineas = MENU.carta[cat].map((item) => {
+      const partes = [`${item.nombre} (${precioEur(item.precio)})`];
+      if (item.descripcion) partes.push(item.descripcion);
+      if (item.media_racion) {
+        partes.push(`media ración ${precioEur(item.media_racion)}`);
+      }
+      return `  · ${partes.join(" — ")}`;
+    });
+    bloques.push(`${titulo}\n${lineas.join("\n")}`);
+  }
+  return bloques.join("\n\n");
+}
+
+export const INFO_IL_POPOLO = {
+  nombre: MENU.negocio.nombre,
+  direccion: "Calle Juan de Austria 11, Cox, Alicante",
+  telefono: MENU.negocio.telefono,
+  horarios:
+    "Lunes y martes: cerrado. Miércoles: 20:00-24:00. Jueves a domingo: 13:00-16:00 y 20:00-24:00.",
+} as const;

@@ -3,7 +3,7 @@
 import type { ItemMenu } from "./menu";
 import { memoryStore } from "./memory-store";
 import { buscarItem, formatearMenu } from "./menu";
-import { interpretarMensajeCliente } from "./claude";
+import { BIENVENIDA_CLIENTE, interpretarMensajeCliente } from "./claude";
 import { registrarPedido } from "./inventario";
 import { enviarMensaje } from "./whatsapp";
 
@@ -281,9 +281,6 @@ async function generarYEnviarLinkPago(pedido: Pedido, from: string): Promise<voi
 }
 
 export async function procesarMensaje(from: string, texto: string): Promise<void> {
-  const BIENVENIDA =
-    "👋 ¡Hola! Soy Braulio, tu camarero online del *Rincón de Pepe*.\n\nEstoy aquí para ayudarte con tu pedido. Esto es lo que puedes hacer:\n\n🍕 Escribe *menu* para ver la carta\n🛒 Dime lo que quieres pedir y lo anoto\n📝 Escribe *nota* para añadir indicaciones especiales (sin gluten, sin cebolla, etc.)\n💳 Cuando termines, dime *pagar* para cerrar el pedido\n❌ Si quieres cancelar, dime *cancelar*\n\n¡Dime qué te apetece! 😊";
-
   const MSG_OPCION_ENTREGA =
     "¿Cómo quieres recibir tu pedido?\n\n🏪 Escribe *local* para recoger en el restaurante\n🛵 Escribe *domicilio* para recibirlo en casa";
 
@@ -294,7 +291,7 @@ export async function procesarMensaje(from: string, texto: string): Promise<void
   const visto = await memoryStore.get(keyVisto);
   if (!visto) {
     await memoryStore.set(keyVisto, "1");
-    await enviarMensaje(from, BIENVENIDA);
+    await enviarMensaje(from, BIENVENIDA_CLIENTE);
     return;
   }
 
